@@ -108,7 +108,7 @@ function CommuneDetails({ commune }: { readonly commune: CommuneResult }) {
                     style={{ backgroundColor: getNuanceColor(c.nuance) }}
                   />
                   <span className="text-xs font-medium text-slate-800 truncate">
-                    {c.libelleAbrege || c.libelleListe}
+                    {c.libelleAbrege || c.libelleListe || [c.nom, c.prenom].filter(Boolean).join(' ') || 'Candidat'}
                   </span>
                 </div>
                 {c.nuance && (
