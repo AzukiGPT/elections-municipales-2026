@@ -39,7 +39,27 @@ export interface DepartementSummary {
   readonly communeCount: number
 }
 
+export interface Election {
+  readonly id: number
+  readonly type: string
+  readonly annee: number
+  readonly tour: number | null
+  readonly date_scrutin: string | null
+  readonly description: string
+}
+
+export interface PartyStatsRow {
+  readonly nuance: string
+  readonly communes_presentes: number
+  readonly communes_gagnees: number
+  readonly score_moyen: number
+  readonly total_voix: number
+  readonly total_sieges: number
+}
+
 export type ViewMode = 'parti' | 'participation'
+
+export type ActiveTab = 'carte' | 'partis'
 
 export type CompetitionFilter = 'all' | 'duel' | 'triangulaire' | 'sans'
 
