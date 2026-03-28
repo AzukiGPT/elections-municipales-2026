@@ -35,6 +35,16 @@ const NUANCE_COLORS: Record<string, string> = {
   // Divers
   LDIV: '#808080',
   LAUT: '#A0A0A0',
+
+  // Nuances 2020 (nomenclature antérieure)
+  NC:   '#a3b18a',  // Non Classé / Sans étiquette
+  LNC:  '#a3b18a',  // Non Communiqué
+  LGJ:  '#f5dd42',  // Gilets Jaunes
+  LDLF: '#003366',  // Debout La France
+  LREG: '#9370DB',  // Régionaliste
+
+  // Nuances européennes 2024
+  LENS: '#FFD600',  // Ensemble (Macron)
 }
 
 // Couleur pour les communes sans étiquette politique — distinct du gris dimmed
@@ -69,6 +79,12 @@ export function getNuanceLabel(nuance: string): string {
     LEXD: 'Extrême droite',
     LDIV: 'Divers',
     LAUT: 'Autres',
+    NC:   'Sans étiquette',
+    LNC:  'Sans étiquette',
+    LGJ:  'Gilets Jaunes',
+    LDLF: 'Debout La France',
+    LREG: 'Régionaliste',
+    LENS: 'Ensemble',
   }
   return labels[nuance] ?? (nuance || 'Sans étiquette')
 }
