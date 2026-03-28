@@ -147,32 +147,49 @@ export async function fetchCommuneResults(
   })
 }
 
+// Mapping from sector codes to GeoJSON arrondissement codes
+const MARSEILLE_SECTOR_TO_ARR: Record<string, string[]> = {
+  '01': ['13201', '13207'], '02': ['13202', '13203'],
+  '03': ['13204', '13205'], '04': ['13206', '13208'],
+  '05': ['13209', '13210'], '06': ['13211', '13212'],
+  '07': ['13213', '13214'], '08': ['13215', '13216'],
+}
+
+function sectorToGeoCodes(sectorCode: string, dep: string): string[] {
+  const num = sectorCode.replace(/.*SR/, '')
+  if (dep === '75') {
+    if (num === '01') return ['75101', '75102', '75103', '75104']
+    return [`751${num}`]
+  }
+  if (dep === '69') return [`69${380 + parseInt(num, 10)}`]
+  if (dep === '13') return MARSEILLE_SECTOR_TO_ARR[num] ?? []
+  return [sectorCode]
+}
+
 export async function fetchPlmResults(
   electionId: number,
   codeDepartement: string
 ): Promise<CommuneResult[]> {
-  // PLM arrondissements have is_arrondissement=true or code contains SR
-  const { data: communeCodes, error: e1 } = await supabase
+  // PLM results are stored under sector codes (75056SR01, 13055SR02, etc.)
+  // We need to fetch those and map them to GeoJSON arrondissement codes
+  const { data: sectorCommunes, error: e1 } = await supabase
     .from('communes')
     .select('code, libelle')
     .eq('code_departement', codeDepartement)
     .eq('is_arrondissement', true)
+    .like('code', '%SR%')
   if (e1) throw new Error(e1.message)
 
-  const codes = (communeCodes ?? []).map(c => c.code)
-  if (codes.length === 0) return []
-
-  const nameMap = new Map<string, string>()
-  for (const c of communeCodes ?? []) nameMap.set(c.code, c.libelle)
+  const sectorCodes = (sectorCommunes ?? []).map(c => c.code)
+  if (sectorCodes.length === 0) return []
 
   const { data: votes, error: e2 } = await supabase
     .from('resultats_vote')
     .select('*')
     .eq('election_id', electionId)
-    .in('code_commune', codes)
+    .in('code_commune', sectorCodes)
   if (e2) throw new Error(e2.message)
 
-  // Paginate candidatures
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allCands: any[] = []
   let candPage = 0
@@ -181,7 +198,7 @@ export async function fetchPlmResults(
       .from('candidatures')
       .select('*')
       .eq('election_id', electionId)
-      .in('code_commune', codes)
+      .in('code_commune', sectorCodes)
       .range(candPage * 1000, (candPage + 1) * 1000 - 1)
     if (e3) throw new Error(e3.message)
     if (!batch || batch.length === 0) break
@@ -189,47 +206,57 @@ export async function fetchPlmResults(
     if (batch.length < 1000) break
     candPage++
   }
-  const cands = allCands
 
-  const candsByCommune = new Map<string, typeof cands>()
-  for (const c of cands ?? []) {
+  const candsByCommune = new Map<string, typeof allCands>()
+  for (const c of allCands) {
     const list = candsByCommune.get(c.code_commune) ?? []
     list.push(c)
     candsByCommune.set(c.code_commune, list)
   }
 
-  return (votes ?? []).map(v => {
-    const candidats = (candsByCommune.get(v.code_commune) ?? []).map(c => ({
-      numero: c.numero_panneau ?? 0,
-      nom: c.nom ?? '',
-      prenom: c.prenom ?? '',
-      sexe: c.sexe ?? '',
-      nuance: c.nuance ?? '',
-      libelleAbrege: c.libelle_abrege ?? '',
-      libelleListe: c.libelle_liste ?? '',
-      voix: c.voix,
+  // Get sector name map
+  const nameMap = new Map<string, string>()
+  for (const c of sectorCommunes ?? []) nameMap.set(c.code, c.libelle)
+
+  // Expand each sector result into GeoJSON arrondissement codes
+  const results: CommuneResult[] = []
+  for (const v of votes ?? []) {
+    const geoCodes = sectorToGeoCodes(v.code_commune, codeDepartement)
+    const candidats = (candsByCommune.get(v.code_commune) ?? []).map((c: Record<string, unknown>) => ({
+      numero: (c.numero_panneau as number) ?? 0,
+      nom: (c.nom as string) ?? '',
+      prenom: (c.prenom as string) ?? '',
+      sexe: (c.sexe as string) ?? '',
+      nuance: (c.nuance as string) ?? '',
+      libelleAbrege: (c.libelle_abrege as string) ?? '',
+      libelleListe: (c.libelle_liste as string) ?? '',
+      voix: c.voix as number,
       pourcentageInscrits: Number(c.pct_inscrits) || 0,
       pourcentageExprimes: Number(c.pct_exprimes) || 0,
-      elu: c.elu ?? false,
-      siegesCM: c.sieges_cm ?? c.sieges ?? 0,
-      siegesCC: c.sieges_cc ?? 0,
+      elu: (c.elu as boolean) ?? false,
+      siegesCM: (c.sieges_cm as number) ?? (c.sieges as number) ?? 0,
+      siegesCC: (c.sieges_cc as number) ?? 0,
     }))
 
-    return {
-      codeDepartement,
-      codeCommune: v.code_commune,
-      libelleCommune: nameMap.get(v.code_commune) ?? v.code_commune,
-      inscrits: v.inscrits,
-      votants: v.votants,
-      pourcentageVotants: v.inscrits > 0 ? Math.round((v.votants / v.inscrits) * 10000) / 100 : 0,
-      abstentions: v.abstentions,
-      pourcentageAbstentions: v.inscrits > 0 ? Math.round((v.abstentions / v.inscrits) * 10000) / 100 : 0,
-      exprimes: v.exprimes,
-      blancs: v.blancs,
-      nuls: v.nuls,
-      candidats,
+    for (const geoCode of geoCodes) {
+      results.push({
+        codeDepartement,
+        codeCommune: geoCode,
+        libelleCommune: nameMap.get(v.code_commune) ?? v.code_commune,
+        inscrits: v.inscrits,
+        votants: v.votants,
+        pourcentageVotants: v.inscrits > 0 ? Math.round((v.votants / v.inscrits) * 10000) / 100 : 0,
+        abstentions: v.abstentions,
+        pourcentageAbstentions: v.inscrits > 0 ? Math.round((v.abstentions / v.inscrits) * 10000) / 100 : 0,
+        exprimes: v.exprimes,
+        blancs: v.blancs,
+        nuls: v.nuls,
+        candidats,
+      })
     }
-  })
+  }
+
+  return results
 }
 
 export async function fetchPartyStats(electionId: number): Promise<PartyStatsRow[]> {
