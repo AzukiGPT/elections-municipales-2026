@@ -57,21 +57,43 @@ export async function fetchCommuneResults(
   const codes = (communeCodes ?? []).map(c => c.code)
   if (codes.length === 0) return []
 
-  // Get vote results
-  const { data: votes, error: e2 } = await supabase
-    .from('resultats_vote')
-    .select('*')
-    .eq('election_id', electionId)
-    .in('code_commune', codes)
-  if (e2) throw new Error(e2.message)
+  // Get vote results (paginate for large departments)
+  const allVotes: { id: number; election_id: number; code_commune: string; inscrits: number; votants: number; abstentions: number; exprimes: number; blancs: number; nuls: number }[] = []
+  let votePage = 0
+  while (true) {
+    const { data: batch, error: e2 } = await supabase
+      .from('resultats_vote')
+      .select('*')
+      .eq('election_id', electionId)
+      .in('code_commune', codes)
+      .range(votePage * 1000, (votePage + 1) * 1000 - 1)
+    if (e2) throw new Error(e2.message)
+    if (!batch || batch.length === 0) break
+    allVotes.push(...batch)
+    if (batch.length < 1000) break
+    votePage++
+  }
+  const votes = allVotes
 
-  // Get candidatures
-  const { data: cands, error: e3 } = await supabase
-    .from('candidatures')
-    .select('*')
-    .eq('election_id', electionId)
-    .in('code_commune', codes)
-  if (e3) throw new Error(e3.message)
+  // Get candidatures (paginate to avoid 1000 row limit)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allCands: any[] = []
+  let page = 0
+  const pageSize = 1000
+  while (true) {
+    const { data: batch, error: e3 } = await supabase
+      .from('candidatures')
+      .select('*')
+      .eq('election_id', electionId)
+      .in('code_commune', codes)
+      .range(page * pageSize, (page + 1) * pageSize - 1)
+    if (e3) throw new Error(e3.message)
+    if (!batch || batch.length === 0) break
+    allCands.push(...batch)
+    if (batch.length < pageSize) break
+    page++
+  }
+  const cands = allCands
 
   // Get commune names
   const { data: communeNames, error: e4 } = await supabase
@@ -150,12 +172,24 @@ export async function fetchPlmResults(
     .in('code_commune', codes)
   if (e2) throw new Error(e2.message)
 
-  const { data: cands, error: e3 } = await supabase
-    .from('candidatures')
-    .select('*')
-    .eq('election_id', electionId)
-    .in('code_commune', codes)
-  if (e3) throw new Error(e3.message)
+  // Paginate candidatures
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allCands: any[] = []
+  let candPage = 0
+  while (true) {
+    const { data: batch, error: e3 } = await supabase
+      .from('candidatures')
+      .select('*')
+      .eq('election_id', electionId)
+      .in('code_commune', codes)
+      .range(candPage * 1000, (candPage + 1) * 1000 - 1)
+    if (e3) throw new Error(e3.message)
+    if (!batch || batch.length === 0) break
+    allCands.push(...batch)
+    if (batch.length < 1000) break
+    candPage++
+  }
+  const cands = allCands
 
   const candsByCommune = new Map<string, typeof cands>()
   for (const c of cands ?? []) {
