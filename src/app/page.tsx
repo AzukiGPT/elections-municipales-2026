@@ -68,11 +68,12 @@ export default function Home() {
   }, [activeDepartement, plmActive])
 
   const handleSelectDepartement = useCallback((code: string) => {
-    if (activeDepartement === code && !plmActive) return
+    // If already viewing this department (with or without PLM), ignore
+    if (activeDepartement === code) return
     setPlmActive(null)
     setSelectedCommune(null)
     setActiveDepartement(code)
-  }, [activeDepartement, plmActive])
+  }, [activeDepartement])
 
   const handleSelectCommune = useCallback((code: string) => {
     // Check if this is a PLM commune — drill into arrondissements
