@@ -37,8 +37,8 @@ const NUANCE_COLORS: Record<string, string> = {
   LAUT: '#A0A0A0',
 }
 
-// Couleur par défaut pour les nuances non mappées (communes sans étiquette)
-const DEFAULT_COLOR = '#c8c8c0'
+// Couleur pour les communes sans étiquette politique — distinct du gris dimmed
+const DEFAULT_COLOR = '#a3b18a'
 
 export function getNuanceColor(nuance: string): string {
   return NUANCE_COLORS[nuance] ?? DEFAULT_COLOR
