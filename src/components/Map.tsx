@@ -148,14 +148,20 @@ export default function Map({
       map.setLayoutProperty('communes-fill', 'visibility', 'none')
       map.setLayoutProperty('communes-line', 'visibility', 'none')
 
-      // Click
-      map.on('click', 'departements-fill', (e) => {
-        const code = e.features?.[0]?.properties?.code
-        if (code) propsRef.current.onSelectDepartement(code)
-      })
+      // Click — use a flag to prevent dept click when commune is clicked
+      let communeClicked = false
       map.on('click', 'communes-fill', (e) => {
         const code = e.features?.[0]?.properties?.code
-        if (code) propsRef.current.onSelectCommune(code)
+        if (code) {
+          communeClicked = true
+          propsRef.current.onSelectCommune(code)
+          setTimeout(() => { communeClicked = false }, 50)
+        }
+      })
+      map.on('click', 'departements-fill', (e) => {
+        if (communeClicked) return
+        const code = e.features?.[0]?.properties?.code
+        if (code) propsRef.current.onSelectDepartement(code)
       })
 
       // Cursor
