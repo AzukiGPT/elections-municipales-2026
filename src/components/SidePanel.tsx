@@ -136,10 +136,14 @@ function CommuneDetails({ commune }: { readonly commune: CommuneResult }) {
                 }}
               />
             </div>
-            {c.siegesCM > 0 && (
-              <div className="text-xs text-slate-500 mt-1">
-                {c.siegesCM} siège{c.siegesCM > 1 ? 's' : ''} CM
-                {c.elu && ' — Élu'}
+            {(c.siegesCM > 0 || c.elu) && (
+              <div className="text-xs mt-1 flex items-center gap-2">
+                {c.elu && (
+                  <span className="text-green-600 font-medium">En tête</span>
+                )}
+                {c.siegesCM > 0 && (
+                  <span className="text-slate-500">{c.siegesCM} siège{c.siegesCM > 1 ? 's' : ''}</span>
+                )}
               </div>
             )}
           </div>

@@ -46,7 +46,7 @@ export default function Home() {
       .then(els => {
         setElections(els)
         // Default to Municipales 2026 T1
-        const defaultEl = els.find(e => e.annee === 2026 && e.tour === 1) ?? els[0]
+        const defaultEl = els.find(e => e.annee === 2026 && e.tour === null && e.type === 'municipales') ?? els.find(e => e.annee === 2026 && e.tour === 1) ?? els[0]
         if (defaultEl) setSelectedElection(defaultEl)
         setLoading(false)
       })
